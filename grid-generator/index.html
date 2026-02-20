@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RASTER SYSTEME</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+html, body {
+  width:100%; height:100%;
+  background:#0e0c10;
+  color:#cdc9be;
+  font-family:'IBM Plex Mono',monospace;
+  overflow:hidden;
+}
+#app { display:flex; flex-direction:column; height:100vh; }
+
+/* ── TOP BAR ── */
+#topbar {
+  height:44px; flex-shrink:0; position:relative;
+  display:flex; justify-content:space-between; align-items:center;
+  padding:0 26px;
+}
+#topbar-left { display:flex; align-items:center; gap:14px; }
+.back-btn {
+  background:none; border:none; cursor:pointer; font-family:inherit;
+  font-size:13px; color:rgba(205,201,190,0.42);
+  padding:0; line-height:1; transition:color 0.12s;
+  text-decoration:none;
+}
+.back-btn:hover { color:rgba(205,201,190,0.80); }
+.tl { font-size:10px; letter-spacing:0.38em; opacity:0.42; text-transform:uppercase; font-weight:500; }
+.topbtn {
+  background:none;
+  border:1px solid rgba(205,201,190,0.18);
+  color:rgba(205,201,190,0.42); font-family:inherit;
+  font-size:8px; letter-spacing:0.26em; padding:5px 13px;
+  cursor:pointer; transition:all 0.12s; text-transform:uppercase;
+}
+.topbtn:hover  { border-color:rgba(205,201,190,0.40); color:rgba(205,201,190,0.78); }
+.topbtn.active { border-color:rgba(205,201,190,0.38); color:rgba(205,201,190,0.92); }
+
+/* ── FORMAT BUTTONS (centered, pure typography) ── */
+#format-btns {
+  position:absolute; left:50%; transform:translateX(-50%);
+  display:flex; gap:0; align-items:center;
+}
+.fmtbtn {
+  background:none; border:none; cursor:pointer;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:8px; letter-spacing:0.26em; text-transform:uppercase;
+  color:rgba(205,201,190,0.30);
+  padding:5px 11px; transition:color 0.12s;
+}
+.fmtbtn:hover  { color:rgba(205,201,190,0.62); }
+.fmtbtn.active { color:rgba(205,201,190,0.90); }
+
+/* ── STAGE ── */
+#stage { flex:1; position:relative; overflow:hidden; min-height:0; }
+#track { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+
+/* ── CARDS ── */
+.card-wrap {
+  position:absolute;
+  display:flex; align-items:center; justify-content:center;
+  transition:
+    transform 0.52s cubic-bezier(0.16,1,0.28,1),
+    opacity   0.52s cubic-bezier(0.16,1,0.28,1),
+    filter    0.52s cubic-bezier(0.16,1,0.28,1);
+  will-change:transform,opacity,filter;
+}
+.card-wrap.instant { transition:none !important; }
+.card {
+  height:70vh;
+  aspect-ratio: var(--fmt-w, 297) / var(--fmt-h, 420);
+  background:#ebe5d9;
+  position:relative; overflow:hidden; flex-shrink:0;
+}
+.card svg { position:absolute; inset:0; width:100%; height:100%; }
+
+/* ── ARROWS ── */
+.arr {
+  position:absolute; top:50%; transform:translateY(-50%);
+  background:rgba(0,0,0,0.52); backdrop-filter:blur(10px);
+  border:1px solid rgba(205,201,190,0.08);
+  color:rgba(205,201,190,0.20); font-family:inherit;
+  font-size:10px; padding:11px 15px;
+  cursor:pointer; z-index:20; transition:all 0.12s; user-select:none;
+}
+.arr:hover { border-color:rgba(205,201,190,0.24); color:rgba(205,201,190,0.65); }
+#btn-p { left:14px; }
+#btn-n { right:14px; }
+
+/* ── CARD HOVER OVERLAY (floats above card) ── */
+#card-overlay {
+  position:absolute; left:50%; transform:translateX(-50%);
+  bottom:calc(50% + 35vh + 12px);
+  width:calc(70vh * var(--fmt-w, 297) / var(--fmt-h, 420));
+  display:flex; flex-direction:column; gap:4px;
+  z-index:12; pointer-events:none;
+  opacity:0; transition:opacity 0.24s cubic-bezier(0.16,1,0.28,1);
+}
+#co-name { font-size:12px; letter-spacing:0.18em; font-weight:600; text-transform:uppercase; color:rgba(205,201,190,0.88); }
+#co-sub  { font-size:8px; letter-spacing:0.28em; text-transform:uppercase; color:rgba(205,201,190,0.36); }
+
+/* ── BOTTOM META (below card on hover) ── */
+#bottom-meta {
+  position:absolute; left:50%; transform:translateX(-50%);
+  top:calc(50% + 35vh + 16px);
+  display:flex; flex-direction:column; align-items:center; gap:10px;
+  z-index:12; pointer-events:none;
+  opacity:0; transition:opacity 0.24s cubic-bezier(0.16,1,0.28,1);
+}
+#meta-desc {
+  font-size:9px; letter-spacing:0.04em; color:rgba(205,201,190,0.32);
+  text-align:center; line-height:1.65; max-width:360px;
+}
+#bottom-meta .topbtn { pointer-events:auto; }
+
+/* ── SHOW ON STAGE HOVER ── */
+#stage:hover #card-overlay,
+#stage:hover #bottom-meta { opacity:1; }
+
+/* ── ALL-GRIDS OVERLAY ── */
+#ov {
+  position:fixed; inset:0; background:#0a090d; z-index:100;
+  display:flex; flex-direction:column;
+  opacity:0; pointer-events:none; transition:opacity 0.16s;
+}
+#ov.open { opacity:1; pointer-events:all; }
+#otop {
+  height:40px; flex-shrink:0;
+  display:flex; justify-content:space-between; align-items:center;
+  padding:0 26px; border-bottom:1px solid rgba(205,201,190,0.08);
+}
+#grid-view {
+  flex:1; overflow-y:auto; padding:18px 22px 24px;
+  display:grid; grid-template-columns:repeat(6,1fr); gap:10px; align-content:start;
+  scrollbar-width:thin; scrollbar-color:rgba(205,201,190,0.07) transparent;
+}
+.gc { display:flex; flex-direction:column; gap:5px; cursor:pointer;
+  opacity:0.65; transition:opacity 0.12s; }
+.gc:hover { opacity:1; }
+.gmp { width:100%; aspect-ratio: var(--fmt-w, 297) / var(--fmt-h, 420); background:#ebe5d9; position:relative; overflow:hidden; }
+.gmp svg { position:absolute; inset:0; width:100%; height:100%; }
+.gc-name   { font-size:7.5px; letter-spacing:0.10em; line-height:1.55; text-transform:uppercase; }
+.gc-bucket { font-size:5.5px; letter-spacing:0.20em; opacity:0.38; text-transform:uppercase; }
+
+@media (max-width:1100px) { #grid-view { grid-template-columns:repeat(5,1fr); } }
+@media (max-width:800px)  { #grid-view { grid-template-columns:repeat(4,1fr); } }
+@media (max-width:540px)  { #grid-view { grid-template-columns:repeat(3,1fr); } }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="topbar">
+    <div id="topbar-left">
+      <a href="../index.html" class="back-btn">←</a>
+      <span class="tl">Raster Systeme</span>
+    </div>
+    <div id="format-btns"></div>
+    <button class="topbtn" id="grid-btn">All</button>
+  </div>
+  <div id="stage">
+    <div id="track"></div>
+    <button class="arr" id="btn-p">←</button>
+    <button class="arr" id="btn-n">→</button>
+    <div id="card-overlay">
+      <span id="co-name"></span>
+      <span id="co-sub"></span>
+    </div>
+    <div id="bottom-meta">
+      <span id="meta-desc"></span>
+      <button class="topbtn" id="copy-btn">Copy SVG</button>
+    </div>
+  </div>
+</div>
+
+<div id="ov">
+  <div id="otop">
+    <span class="tl" id="ovtitle"></span>
+    <button class="topbtn" id="close-btn">Close</button>
+  </div>
+  <div id="grid-view"></div>
+</div>
+
+<script>
+// ── Formats ───────────────────────────────────────────────────────
+// 5 formats with meaningfully distinct aspect ratios
+const FORMATS = [
+  { id:'MOVIE',  label:'Movie',    W:200,  H:300  },  // 2:3   = 1:1.500
+  { id:'ISO',    label:'ISO A',    W:297,  H:420  },  // 1:√2  = 1:1.414 (default)
+  { id:'US',     label:'US',       W:300,  H:400  },  // 3:4   = 1:1.333
+  { id:'QUARTR', label:'Quartr',   W:1258, H:1523 },  // custom = 1:1.210
+  { id:'SQUARE', label:'Square',   W:300,  H:300  },  // 1:1   = 1:1.000
+];
+
+// ── SVG helpers — viewBox "0 0 W H", all sizes relative to A3 ────
+let W = 297, H = 420, SF = 1;
+let SW = 0.24, SWM = 0.42;
+
+const RED = '172,28,82';
+const C  = (o=0.42) => `rgba(${RED},${o})`;
+const M  = (o=0.76) => `rgba(${RED},${o})`;
+const F  = (o=0.07) => `rgba(${RED},${o})`;
+
+const LN = (x1,y1,x2,y2,col=C(),sw=SW) =>
+  `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-width="${sw}" stroke-linecap="square"/>`;
+const RC = (x,y,w,h,fill=F(),stroke=C(),sw=SW) =>
+  `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
+const SV = b => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}">${b}</svg>`;
+const mg = (mL,mR,mT,mB) =>
+  LN(mL,0,mL,H,M(),SWM)+LN(W-mR,0,W-mR,H,M(),SWM)+
+  LN(0,mT,W,mT,M(),SWM)+LN(0,H-mB,W,H-mB,M(),SWM);
+const bl = (x1,x2,y0,y1,step=6,col=C(0.19),sw=0.16) => {
+  const ss=step*SF, sw2=sw*SF;
+  let s=''; for(let y=y0; y<=y1+0.01; y+=ss) s+=LN(x1,y,x2,y,col,sw2); return s;
+};
+const lbl = (x,y,t,sz=4.5,col=M(0.50),a='middle') =>
+  `<text x="${x}" y="${y}" font-size="${sz*SF}" fill="${col}" text-anchor="${a}" font-family="serif">${t}</text>`;
+const dg = (x1,y1,x2,y2,o=0.09) => LN(x1,y1,x2,y2,C(o),0.18*SF);
+
+// ── GRIDS ────────────────────────────────────────────────────────
+const GRIDS = [
+
+  // ── CANON ─────────────────────────────────────────────────────
+  {
+    bucket:"CANON", name:"VAN DE GRAAF CANON",
+    desc:"Medieval text block via page diagonals — inner margin W⁄9, top H⁄9. Used by Gutenberg c.1450.",
+    build() {
+      const mL=W/9, mT=H/9, fw=W*2/3, fh=H*2/3, mR=W-mL-fw, mB=H-mT-fh;
+      return SV(
+        dg(0,0,W,H)+dg(W,0,0,H)+dg(0,0,W,fh+mT)+dg(0,H,W,fh+mT)+
+        mg(mL,mR,mT,mB)+RC(mL,mT,fw,fh,F(),M(),SWM)+bl(mL,mL+fw,mT,mT+fh,7)
+      );
+    }
+  },
+  {
+    bucket:"CANON", name:"TSCHICHOLD GOLDEN",
+    desc:"Margins in exact 2:3:4:6 ratio. Text height equals page width. In every well-proportioned incunabulum.",
+    build() {
+      const k=(H-W)/9, mL=2*k, mT=3*k, mR=4*k, mB=6*k, fw=W-mL-mR, fh=H-mT-mB;
+      return SV(
+        [1,2,3,4,5,6,7,8].map(i=>
+          LN(W*i/9,0,W*i/9,H,C(0.05),0.13*SF)+LN(0,H*i/9,W,H*i/9,C(0.05),0.13*SF)
+        ).join('')+
+        dg(0,0,W,H)+dg(W,0,0,H)+
+        mg(mL,mR,mT,mB)+RC(mL,mT,fw,fh,F(),M(),SWM)+bl(mL,mL+fw,mT,mT+fh,6.5)
+      );
+    }
+  },
+  {
+    bucket:"CANON", name:"MANUSCRIPT PAGE",
+    desc:"Single-column book. Inner margin = outer⁄2. Bottom = top × 2. After Bringhurst — Elements of Typographic Style.",
+    build() {
+      const mL=Math.round(W/9), mR=Math.round(W*2/9), mT=Math.round(H/9), mB=Math.round(H*2/9);
+      const fw=W-mL-mR, fh=H-mT-mB;
+      return SV(
+        LN(0,mT,mL,mT,C(0.14),0.20*SF)+LN(W-mR,mT,W,mT,C(0.14),0.20*SF)+
+        LN(0,H-mB,mL,H-mB,C(0.14),0.20*SF)+LN(W-mR,H-mB,W,H-mB,C(0.14),0.20*SF)+
+        LN(mL,mT-8*SF,mL+fw,mT-8*SF,C(0.18),0.16*SF)+LN(mL,H-mB+8*SF,mL+fw,H-mB+8*SF,C(0.18),0.16*SF)+
+        mg(mL,mR,mT,mB)+RC(mL,mT,fw,fh,F(),M(),SWM)+bl(mL,mL+fw,mT,mT+fh,7)
+      );
+    }
+  },
+
+  // ── RASTER SYSTEME ────────────────────────────────────────────
+  {
+    bucket:"RASTER SYSTEME", name:"4 × 8 MÜLLER-BROCKMANN",
+    desc:"32 equal modules, uniform gutters. Every decision made by relation to the module. Zurich, 1961.",
+    build() {
+      const mL=18*SF,mR=18*SF,mT=34*SF,mB=42*SF,gH=5*SF,gV=5*SF,cols=4,rows=8;
+      const cw=(W-mL-mR-(cols-1)*gH)/cols, rh=(H-mT-mB-(rows-1)*gV)/rows;
+      let s=mg(mL,mR,mT,mB);
+      for(let r=0;r<rows;r++) for(let c=0;c<cols;c++)
+        s+=RC(mL+c*(cw+gH),mT+r*(rh+gV),cw,rh,F(),C(),SW);
+      return SV(s);
+    }
+  },
+  {
+    bucket:"RASTER SYSTEME", name:"6 × 10 MODULAR",
+    desc:"60 modules — the precision instrument. Images, type, captions and white space all resolve to one unit.",
+    build() {
+      const mL=14*SF,mR=14*SF,mT=28*SF,mB=36*SF,gH=4*SF,gV=4*SF,cols=6,rows=10;
+      const cw=(W-mL-mR-(cols-1)*gH)/cols, rh=(H-mT-mB-(rows-1)*gV)/rows;
+      let s=mg(mL,mR,mT,mB);
+      for(let r=0;r<rows;r++) for(let c=0;c<cols;c++)
+        s+=RC(mL+c*(cw+gH),mT+r*(rh+gV),cw,rh,F(),C(),SW);
+      return SV(s);
+    }
+  },
+  {
+    bucket:"RASTER SYSTEME", name:"8 × 12 TIGHT MODULE",
+    desc:"96 cells — maximum precision for information design. Annual reports, scientific catalogues.",
+    build() {
+      const mL=12*SF,mR=12*SF,mT=22*SF,mB=30*SF,gH=3*SF,gV=3*SF,cols=8,rows=12;
+      const cw=(W-mL-mR-(cols-1)*gH)/cols, rh=(H-mT-mB-(rows-1)*gV)/rows;
+      let s=mg(mL,mR,mT,mB);
+      for(let r=0;r<rows;r++) for(let c=0;c<cols;c++)
+        s+=RC(mL+c*(cw+gH),mT+r*(rh+gV),cw,rh,F(0.05),C(0.34),0.16*SF);
+      return SV(s);
+    }
+  },
+
+  // ── PROGRAMME ─────────────────────────────────────────────────
+  {
+    bucket:"PROGRAMME", name:"GERSTNER PROGRAMME",
+    desc:"Capital magazine, 1962. 58-unit grid divisible by 2, 3, 4, and 6 — six sub-grids latent in one.",
+    build() {
+      const mL=12*SF,mR=12*SF,mT=26*SF,mB=34*SF,gH=3*SF,cols=12;
+      const cw=(W-mL-mR-(cols-1)*gH)/cols, fh=H-mT-mB;
+      let s=mg(mL,mR,mT,mB);
+      for(let c=0;c<cols;c++){
+        const x=mL+c*(cw+gH);
+        s+=RC(x,mT,cw,fh,F(),C(),SW)+LN(x+cw/2,mT,x+cw/2,H-mB,C(0.11),0.11*SF);
+      }
+      for(let r=0;r<=6;r++){
+        const y=mT+r*fh/6;
+        s+=LN(mL,y,W-mR,y,r===0||r===6?M():C(0.24),r===0||r===6?SWM:0.16*SF);
+      }
+      return SV(s);
+    }
+  },
+  {
+    bucket:"PROGRAMME", name:"VIGNELLI UNIGRID",
+    desc:"U.S. National Park Service, 1977. A single grid for every park brochure — constraint as institutional identity.",
+    build() {
+      const mL=16*SF,mR=16*SF,mT=28*SF,mB=36*SF,cols=8;
+      const cw=(W-mL-mR)/cols, fh=H-mT-mB, bandH=fh*0.40;
+      let s=mg(mL,mR,mT,mB);
+      for(let c=0;c<=cols;c++){
+        const x=mL+c*cw;
+        s+=LN(x,mT,x,H-mB,c===0||c===cols?M():C(0.20),c===0||c===cols?SWM:SW);
+      }
+      s+=RC(mL,mT,W-mL-mR,bandH,F(0.10),M(),SWM);
+      return SV(s+bl(mL,W-mR,mT+bandH,H-mB,5));
+    }
+  },
+
+  // ── COLUMN ────────────────────────────────────────────────────
+  {
+    bucket:"COLUMN", name:"2-COLUMN",
+    desc:"Essays, reports, dual-language publications. Two equal columns — a natural comparison structure.",
+    build() {
+      const mL=24*SF,mR=24*SF,mT=36*SF,mB=44*SF,g=10*SF,cw=(W-mL-mR-g)/2;
+      return SV(
+        mg(mL,mR,mT,mB)+
+        RC(mL,mT,cw,H-mT-mB,F(),C(),SW)+RC(mL+cw+g,mT,cw,H-mT-mB,F(),C(),SW)+
+        LN(mL+cw,mT,mL+cw,H-mB,C(),SW)+LN(mL+cw+g,mT,mL+cw+g,H-mB,C(),SW)+
+        bl(mL,W-mR,mT,H-mB)
+      );
+    }
+  },
+  {
+    bucket:"COLUMN", name:"3-COLUMN EDITORIAL",
+    desc:"Magazine and annual report standard. Span 1, 2, or 3 columns to build typographic hierarchy.",
+    build() {
+      const mL=18*SF,mR=18*SF,mT=34*SF,mB=42*SF,g=8*SF,cw=(W-mL-mR-2*g)/3;
+      let s=mg(mL,mR,mT,mB);
+      for(let i=0;i<3;i++) s+=RC(mL+i*(cw+g),mT,cw,H-mT-mB,F(),C(),SW);
+      return SV(s+bl(mL,W-mR,mT,H-mB,5.5));
+    }
+  },
+  {
+    bucket:"COLUMN", name:"4-COLUMN BROADSHEET",
+    desc:"Newspaper standard. Four columns pair into two. Combinations 1+3, 2+2, 1+1+2 give full compositional range.",
+    build() {
+      const mL=16*SF,mR=16*SF,mT=30*SF,mB=38*SF,g=7*SF,cw=(W-mL-mR-3*g)/4;
+      let s=mg(mL,mR,mT,mB);
+      for(let i=0;i<4;i++) s+=RC(mL+i*(cw+g),mT,cw,H-mT-mB,F(),C(),SW);
+      s+=RC(mL,mT,cw,H-mT-mB,F(0.13),C(0.48),SW*1.4);
+      return SV(s+bl(mL,W-mR,mT,H-mB,5));
+    }
+  },
+  {
+    bucket:"COLUMN", name:"5-COLUMN ASYMMETRIC",
+    desc:"Wide primary column (3 units) flanked by two narrow secondaries (1 unit each). Dutch editorial, 1970s.",
+    build() {
+      const mL=16*SF,mR=16*SF,mT=30*SF,mB=38*SF,g=6*SF;
+      const parts=[3,1,1], fw=W-mL-mR-2*g, unit=fw/5;
+      let s=mg(mL,mR,mT,mB), x=mL;
+      parts.forEach((p,i)=>{
+        const cw=p*unit;
+        s+=RC(x,mT,cw,H-mT-mB,i===0?F(0.10):F(0.04),i===0?M(0.52):C(),SW);
+        x+=cw+g;
+      });
+      return SV(s+bl(mL,W-mR,mT,H-mB,5.5));
+    }
+  },
+  {
+    bucket:"COLUMN", name:"TWEN ASYMMETRIC",
+    desc:"Fleckhaus, twen magazine, 1959. Radical asymmetry — dominant column and a bleed image zone. Grid as drama.",
+    build() {
+      const mL=14*SF,mR=14*SF,mT=24*SF,mB=32*SF,g=8*SF;
+      const fw=W-mL-mR-g, c1=fw*0.62, c2=fw-c1, imgH=H*0.47;
+      let s=RC(0,0,W,imgH,F(0.06),'none',0)+LN(0,imgH,W,imgH,M(),SWM);
+      s+=mg(mL,mR,mT+imgH,mB);
+      s+=RC(mL,mT+imgH,c1,H-mT-imgH-mB,F(0.08),C(),SW);
+      s+=RC(mL+c1+g,mT+imgH,c2,H-mT-imgH-mB,F(0.04),C(),SW);
+      s+=LN(mL,mT,mL,mT+imgH,M(0.26),0.20*SF);
+      return SV(s+bl(mL,W-mR,mT+imgH,H-mB,5));
+    }
+  },
+
+  // ── PROPORTION ────────────────────────────────────────────────
+  {
+    bucket:"PROPORTION", name:"GOLDEN SECTION  φ",
+    desc:"Text area split by φ = 1.618. Primary column for body; secondary for captions and marginalia.",
+    build() {
+      const φ=1.618,mL=22*SF,mR=22*SF,mT=30*SF,mB=38*SF,g=8*SF,fw=W-mL-mR-g;
+      const c2=fw/(1+φ), c1=fw-c2;
+      return SV(
+        mg(mL,mR,mT,mB)+
+        RC(mL,mT,c1,H-mT-mB,F(),C(),SW)+
+        LN(mL+c1,mT,mL+c1,H-mB,C(),SW)+LN(mL+c1+g,mT,mL+c1+g,H-mB,C(),SW)+
+        RC(mL+c1+g,mT,c2,H-mT-mB,F(0.05),C(),SW)+
+        lbl(mL+c1/2,mT-5*SF,'φ',6)+lbl(mL+c1+g+c2/2,mT-5*SF,'1',5)+
+        bl(mL,W-mR,mT,H-mB,6)
+      );
+    }
+  },
+  {
+    bucket:"PROPORTION", name:"ROOT RECTANGLE  √2",
+    desc:"A-paper ratio (1:√2 = 1:1.414) carried into the column structure. The grid resonates with the sheet.",
+    build() {
+      const r2=Math.SQRT2,mL=22*SF,mR=22*SF,mT=30*SF,mB=38*SF,g=8*SF,fw=W-mL-mR-g;
+      const c2=fw/(1+r2), c1=fw-c2;
+      return SV(
+        LN(mL,mT,mL+c2,mT,C(0.14),0.20*SF)+LN(mL,mT,mL,mT+c2,C(0.14),0.20*SF)+
+        LN(mL,mT,mL+c2,mT+c2,C(0.10),0.16*SF)+
+        mg(mL,mR,mT,mB)+
+        RC(mL,mT,c1,H-mT-mB,F(),C(),SW)+
+        LN(mL+c1,mT,mL+c1,H-mB,C(),SW)+LN(mL+c1+g,mT,mL+c1+g,H-mB,C(),SW)+
+        RC(mL+c1+g,mT,c2,H-mT-mB,F(0.05),C(),SW)+
+        lbl(mL+c1/2,mT-5*SF,'√2',4.5)+lbl(mL+c1+g+c2/2,mT-5*SF,'1',4.5)+
+        bl(mL,W-mR,mT,H-mB,6)
+      );
+    }
+  },
+  {
+    bucket:"PROPORTION", name:"FIBONACCI",
+    desc:"Columns in 2 : 3 : 5 : 8 — each width the sum of two before it. The sequence converges toward φ.",
+    build() {
+      const mL=16*SF,mR=16*SF,mT=30*SF,mB=38*SF,g=6*SF;
+      const parts=[2,3,5,8], total=parts.reduce((a,b)=>a+b,0);
+      const fw=W-mL-mR-(parts.length-1)*g, unit=fw/total;
+      let s=mg(mL,mR,mT,mB), x=mL;
+      parts.forEach(p=>{
+        const cw=p*unit;
+        s+=RC(x,mT,cw,H-mT-mB,F(),C(),SW)+lbl(x+cw/2,mT-5*SF,String(p),4.5);
+        x+=cw+g;
+      });
+      return SV(s+bl(mL,W-mR,mT,H-mB,5.5));
+    }
+  },
+  {
+    bucket:"PROPORTION", name:"LE CORBUSIER MODULOR",
+    desc:"Horizontal bands at navel (½), head (0.81×) and raised arm of a 183cm man. Math in service of human measure.",
+    build() {
+      const mL=24*SF,mR=24*SF, total=226, reds=[43,70,113,183];
+      const k=H/total, ys=reds.map(v=>H-v*k);
+      let s='';
+      const yb=[H,...ys.slice().reverse(),0];
+      for(let i=0;i<yb.length-1;i++)
+        if(i%2===0) s+=RC(0,yb[i+1],W,yb[i]-yb[i+1],F(0.06),'none',0);
+      ys.forEach((y,i)=>s+=LN(0,y,W,y,i===2?M():M(0.35),i===2?SWM:0.18*SF));
+      s+=LN(mL,0,mL,H,M(),SWM)+LN(W-mR,0,W-mR,H,M(),SWM)+lbl(W/2,ys[2]-5*SF,'φ',6.5);
+      return SV(s);
+    }
+  },
+  {
+    bucket:"PROPORTION", name:"GEOMETRIC PROGRESSION",
+    desc:"Column widths in ratio 1 : 2 : 4 — strict doubling. Each span twice the previous. Power-of-two structure.",
+    build() {
+      const mL=18*SF,mR=18*SF,mT=32*SF,mB=40*SF,g=7*SF;
+      const parts=[1,2,4], fw=W-mL-mR-2*g, unit=fw/7;
+      let s=mg(mL,mR,mT,mB), x=mL;
+      parts.forEach(p=>{
+        const cw=p*unit;
+        s+=RC(x,mT,cw,H-mT-mB,F(),C(),SW)+lbl(x+cw/2,mT-5*SF,`×${p}`,4.5);
+        x+=cw+g;
+      });
+      return SV(s+bl(mL,W-mR,mT,H-mB,5.5));
+    }
+  },
+
+  // ── TYPOGRAPHIC ───────────────────────────────────────────────
+  {
+    bucket:"TYPOGRAPHIC", name:"BASELINE GRID",
+    desc:"Pure vertical rhythm at 4mm. Every element locks to this cadence — the invisible horizontal architecture.",
+    build() {
+      const mL=28*SF,mR=28*SF,mT=38*SF,mB=46*SF,step=4*SF;
+      let s='';
+      for(let y=0;y<=H;y+=step){
+        const iM=Math.abs(y-mT)<0.5||Math.abs(y-(H-mB))<0.5;
+        s+=LN(0,y,W,y,iM?M():C(0.19),iM?SWM:0.15*SF);
+      }
+      for(let y=mT;y<=H-mB;y+=step*4) s+=LN(mL,y,W-mR,y,C(0.36),0.24*SF);
+      s+=LN(mL,0,mL,H,M(),SWM)+LN(W-mR,0,W-mR,H,M(),SWM);
+      return SV(s);
+    }
+  },
+  {
+    bucket:"TYPOGRAPHIC", name:"COMPOUND GRID",
+    desc:"3-column skeleton overlaid with 4mm baseline rhythm — the complete typographic control system.",
+    build() {
+      const mL=18*SF,mR=18*SF,mT=34*SF,mB=42*SF,g=8*SF,step=4*SF,cw=(W-mL-mR-2*g)/3;
+      let s='';
+      for(let y=0;y<=H;y+=step) s+=LN(0,y,W,y,C(0.11),0.11*SF);
+      for(let y=mT;y<=H-mB;y+=step*4) s+=LN(mL,y,W-mR,y,C(0.22),0.17*SF);
+      s+=mg(mL,mR,mT,mB);
+      for(let i=0;i<3;i++) s+=RC(mL+i*(cw+g),mT,cw,H-mT-mB,F(),C(),SW);
+      return SV(s);
+    }
+  },
+  {
+    bucket:"TYPOGRAPHIC", name:"HARMONIC PROPORTIONS",
+    desc:"Columns in musical intervals: fourth (4:3), fifth (3:2), octave (2:1). Pythagoras on the page.",
+    build() {
+      const mL=18*SF,mR=18*SF,mT=34*SF,mB=42*SF,g=8*SF;
+      const parts=[4,6,8], fw=W-mL-mR-2*g, unit=fw/18;
+      const ivs=['4:3','3:2','2:1'];
+      let s=mg(mL,mR,mT,mB), x=mL;
+      parts.forEach((p,i)=>{
+        const cw=p*unit;
+        s+=RC(x,mT,cw,H-mT-mB,F(),C(),SW)+lbl(x+cw/2,mT-5*SF,ivs[i],4);
+        x+=cw+g;
+      });
+      return SV(s+bl(mL,W-mR,mT,H-mB,5.5));
+    }
+  },
+  {
+    bucket:"TYPOGRAPHIC", name:"RUDER OPTICAL",
+    desc:"Emil Ruder, Basel 1967. Optical margins — asymmetrically inset to correct visual tension at the page edge.",
+    build() {
+      const mL=22*SF,mR=18*SF,mT=36*SF,mB=46*SF;
+      const mechM=18*SF, fw=W-mL-mR, fh=H-mT-mB;
+      let s=LN(mechM,0,mechM,H,C(0.10),0.12*SF)+LN(W-mechM,0,W-mechM,H,C(0.10),0.12*SF)+
+        LN(0,mT-4*SF,W,mT-4*SF,C(0.10),0.12*SF)+LN(0,H-mB+2*SF,W,H-mB+2*SF,C(0.10),0.12*SF);
+      s+=mg(mL,mR,mT,mB)+RC(mL,mT,fw,fh,F(),M(),SWM);
+      return SV(s+bl(mL,mL+fw,mT,mT+fh,6.5));
+    }
+  },
+  {
+    bucket:"TYPOGRAPHIC", name:"DOT GRID",
+    desc:"Isometric reference field — equal in both axes. Bauhaus preliminary course. Design without imposed hierarchy.",
+    build() {
+      const mL=20*SF,mR=20*SF,mT=32*SF,mB=40*SF,step=8*SF;
+      let s='';
+      for(let y=mT;y<=H-mB+0.01;y+=step)
+        for(let x=mL;x<=W-mR+0.01;x+=step)
+          s+=`<circle cx="${x}" cy="${y}" r="${0.44*SF}" fill="${C(0.35)}"/>`;
+      for(let y=mT;y<=H-mB+0.01;y+=step*4)
+        for(let x=mL;x<=W-mR+0.01;x+=step*4)
+          s+=`<circle cx="${x}" cy="${y}" r="${0.88*SF}" fill="${M(0.52)}"/>`;
+      s+=LN(mL,0,mL,H,M(),SWM)+LN(W-mR,0,W-mR,H,M(),SWM);
+      s+=LN(0,mT,W,mT,M(),SWM)+LN(0,H-mB,W,H-mB,M(),SWM);
+      return SV(s);
+    }
+  },
+  {
+    bucket:"TYPOGRAPHIC", name:"STRIP GRID",
+    desc:"Horizontal band composition. Bauhaus-influenced — the page as a sequence of proportioned horizontal zones.",
+    build() {
+      const mL=20*SF,mR=20*SF,mT=22*SF,mB=30*SF;
+      const parts=[1,2,3,2,1], total=9, fh=H-mT-mB, unit=fh/total;
+      let s=mg(mL,mR,mT,mB), y=mT;
+      parts.forEach((p,i)=>{
+        const bh=p*unit;
+        s+=RC(mL,y,W-mL-mR,bh,i===2?F(0.11):F(0.04),C(),SW);
+        y+=bh;
+      });
+      const fw=W-mL-mR;
+      [0.25,0.5,0.75].forEach(f=>s+=LN(mL+fw*f,mT,mL+fw*f,H-mB,C(0.16),0.16*SF));
+      return SV(s);
+    }
+  },
+  {
+    bucket:"TYPOGRAPHIC", name:"OCTAVO JOURNAL",
+    desc:"8vo London, 1986–92. Six narrow columns, dense 3.5mm baseline, no decoration. Brutalist typographic rigour.",
+    build() {
+      const mL=12*SF,mR=12*SF,mT=20*SF,mB=28*SF,g=4*SF,step=3.5*SF,cols=6;
+      const cw=(W-mL-mR-(cols-1)*g)/cols, fh=H-mT-mB;
+      let s='';
+      for(let y=0;y<=H;y+=step) s+=LN(0,y,W,y,C(0.10),0.10*SF);
+      s+=mg(mL,mR,mT,mB);
+      for(let i=0;i<cols;i++) s+=RC(mL+i*(cw+g),mT,cw,fh,F(0.05),C(0.38),0.20*SF);
+      return SV(s);
+    }
+  },
+
+]; // end GRIDS
+
+const N = GRIDS.length;
+let cur = 0, ovOpen = false;
+
+// ── Build track ───────────────────────────────────────────────────
+const track = document.getElementById('track');
+const cards = GRIDS.map(g => {
+  const wrap = document.createElement('div'); wrap.className = 'card-wrap';
+  const card = document.createElement('div'); card.className = 'card';
+  card.innerHTML = g.build();
+  wrap.appendChild(card);
+  track.appendChild(wrap);
+  return wrap;
+});
+
+// ── Build overlay ─────────────────────────────────────────────────
+document.getElementById('ovtitle').textContent = `All Grids — ${N}`;
+const gridView = document.getElementById('grid-view');
+const gcEls = GRIDS.map((g, i) => {
+  const el = document.createElement('div'); el.className = 'gc';
+  const gmp = document.createElement('div'); gmp.className = 'gmp';
+  gmp.innerHTML = g.build();
+  const nm = document.createElement('div'); nm.className = 'gc-name';   nm.textContent = g.name;
+  const bk = document.createElement('div'); bk.className = 'gc-bucket'; bk.textContent = g.bucket;
+  el.append(gmp, nm, bk);
+  el.addEventListener('click', () => { goTo(i); closeOv(); });
+  gridView.appendChild(el);
+  return el;
+});
+
+// ── Format buttons ────────────────────────────────────────────────
+const fmtBtns = [];
+FORMATS.forEach(fmt => {
+  const btn = document.createElement('button');
+  btn.className = 'fmtbtn' + (fmt.id === 'ISO' ? ' active' : '');
+  btn.textContent = fmt.label;
+  btn.addEventListener('click', () => setFormat(fmt.id));
+  document.getElementById('format-btns').appendChild(btn);
+  fmtBtns.push(btn);
+});
+
+function setFormat(id) {
+  const fmt = FORMATS.find(f => f.id === id);
+  W = fmt.W; H = fmt.H; SF = W / 297;
+  SW = 0.24 * SF; SWM = 0.42 * SF;
+  document.documentElement.style.setProperty('--fmt-w', W);
+  document.documentElement.style.setProperty('--fmt-h', H);
+  fmtBtns.forEach((b, i) => b.classList.toggle('active', FORMATS[i].id === id));
+
+  cards.forEach((wrap, i) => { wrap.querySelector('.card').innerHTML = GRIDS[i].build(); });
+  gcEls.forEach((el, i)   => { el.querySelector('.gmp').innerHTML   = GRIDS[i].build(); });
+  render(false);
+}
+
+// ── Layout ────────────────────────────────────────────────────────
+const SCALE = 0.83;
+const GAP   = -14;
+
+function buildDist(cw) {
+  const d = [0];
+  for (let i = 0; i < 3; i++) {
+    d.push(d[i] + cw * (Math.pow(SCALE, i) + Math.pow(SCALE, i + 1)) / 2 + GAP);
+  }
+  return d;
+}
+
+const OPC = [1, 0.18, 0.06, 0.02];
+const BLR = [0, 5, 10, 14];
+const ZI  = [10, 7, 4, 1];
+
+function layoutCards(animate) {
+  const cw  = cards[0].querySelector('.card').offsetWidth ||
+              Math.floor(window.innerHeight * 0.70 * W / H);
+  const dist = buildDist(cw);
+
+  if (!animate) cards.forEach(c => c.classList.add('instant'));
+
+  cards.forEach((wrap, i) => {
+    let d = i - cur;
+    if (d >  N / 2) d -= N;
+    if (d < -N / 2) d += N;
+    const a = Math.abs(d), s = d > 0 ? 1 : -1;
+
+    if (a > 3) { wrap.style.display = 'none'; return; }
+    wrap.style.display   = 'flex';
+    wrap.style.transform = `translateX(${(a === 0 ? 0 : s * dist[a])}px) scale(${Math.pow(SCALE, a)})`;
+    wrap.style.opacity   = String(OPC[a]);
+    wrap.style.filter    = BLR[a] ? `blur(${BLR[a]}px)` : 'none';
+    wrap.style.zIndex    = String(ZI[a]);
+  });
+
+  if (!animate) requestAnimationFrame(() => cards.forEach(c => c.classList.remove('instant')));
+}
+
+function render(animate = true) {
+  layoutCards(animate);
+  gcEls.forEach((el, i) => el.classList.toggle('active', i === cur));
+  const ctr = `${String(cur + 1).padStart(2,'0')} / ${String(N).padStart(2,'0')}`;
+  document.getElementById('co-name').textContent   = GRIDS[cur].name;
+  document.getElementById('co-sub').textContent    = GRIDS[cur].bucket + '  ·  ' + ctr;
+  document.getElementById('meta-desc').textContent = GRIDS[cur].desc;
+}
+
+function goTo(i) {
+  const p = cur;
+  cur = ((i % N) + N) % N;
+  render(Math.abs(cur - p) < N / 2);
+}
+const prev = () => goTo(cur - 1);
+const next = () => goTo(cur + 1);
+
+// ── Overlay ───────────────────────────────────────────────────────
+const ov      = document.getElementById('ov');
+const gridBtn = document.getElementById('grid-btn');
+function openOv()  { ovOpen=true;  ov.classList.add('open');    gridBtn.classList.add('active'); }
+function closeOv() { ovOpen=false; ov.classList.remove('open'); gridBtn.classList.remove('active'); }
+gridBtn.addEventListener('click', () => ovOpen ? closeOv() : openOv());
+document.getElementById('close-btn').addEventListener('click', closeOv);
+
+// ── Input ─────────────────────────────────────────────────────────
+document.getElementById('btn-p').addEventListener('click', prev);
+document.getElementById('btn-n').addEventListener('click', next);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape')                            { closeOv(); return; }
+  if (ovOpen) return;
+  if (e.key === 'ArrowLeft'  || e.key === 'h') prev();
+  if (e.key === 'ArrowRight' || e.key === 'l') next();
+  if (e.key === 'g'          || e.key === 'G') ovOpen ? closeOv() : openOv();
+});
+
+let t0 = null;
+document.addEventListener('touchstart', e => { t0 = e.touches[0].clientX; }, { passive:true });
+document.addEventListener('touchend', e => {
+  if (t0 === null || ovOpen) return;
+  const dx = e.changedTouches[0].clientX - t0;
+  if (Math.abs(dx) > 44) dx < 0 ? next() : prev();
+  t0 = null;
+});
+
+window.addEventListener('resize', () => render(false));
+
+// ── Init ──────────────────────────────────────────────────────────
+document.documentElement.style.setProperty('--fmt-w', W);
+document.documentElement.style.setProperty('--fmt-h', H);
+requestAnimationFrame(() => render(false));
+
+// ── Copy SVG ──────────────────────────────────────────────────────
+document.getElementById('copy-btn').addEventListener('click', () => {
+  const svg = GRIDS[cur].build();
+  navigator.clipboard.writeText(svg).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = '✓ Copied';
+    btn.classList.add('active');
+    setTimeout(() => { btn.textContent = 'Copy SVG'; btn.classList.remove('active'); }, 1400);
+  });
+});
+</script>
+</body>
+</html>

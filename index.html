@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quartr Design Lab</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  width: 100%; height: 100%;
+  background: #0e0c10;
+  color: #cdc9be;
+  font-family: 'IBM Plex Mono', monospace;
+  overflow: hidden;
+}
+#app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 52px;
+  max-width: 800px;
+}
+.lab-title {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.38em;
+  text-transform: uppercase;
+  color: rgba(205,201,190,0.40);
+  margin-bottom: 32px;
+}
+.project {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 7px 0;
+  text-decoration: none;
+  color: inherit;
+}
+.project-num {
+  font-size: 7.5px;
+  letter-spacing: 0.20em;
+  color: rgba(205,201,190,0.25);
+  width: 22px;
+  flex-shrink: 0;
+}
+.project-name {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(205,201,190,0.75);
+  transition: color 0.12s;
+}
+.project.inactive .project-name {
+  color: rgba(205,201,190,0.22);
+}
+.project-tag {
+  font-size: 7.5px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgba(205,201,190,0.20);
+}
+.project.inactive .project-tag {
+  color: rgba(205,201,190,0.12);
+}
+a.project:hover .project-name { color: rgba(205,201,190,0.95); }
+a.project:hover .project-tag  { color: rgba(205,201,190,0.45); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="lab-title">Quartr Design Lab</div>
+
+  <a class="project" href="./grid-generator/index.html">
+    <span class="project-num">01</span>
+    <span class="project-name">Raster Systeme</span>
+    <span class="project-tag">Grid Systems</span>
+  </a>
+
+  <div class="project inactive">
+    <span class="project-num">02</span>
+    <span class="project-name">Poster Gallery</span>
+    <span class="project-tag">Soon</span>
+  </div>
+
+  <div class="project inactive">
+    <span class="project-num">03</span>
+    <span class="project-name">Pattern Generator</span>
+    <span class="project-tag">Soon</span>
+  </div>
+</div>
+</body>
+</html>
